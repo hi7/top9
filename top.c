@@ -6,7 +6,6 @@
 #define U 24
 #define H 12
 #define D 6
-#define O 3
 
 long
 rgba(uchar r, uchar g, uchar b, uchar a);
@@ -15,64 +14,123 @@ Point
 add(Point p1, Point p2);
 
 void
-box(long color, Point loc);
+box(long color, Point loc, int d, int inv);
 
 void
-laser(Point loc);
+laser(Point loc, int d);
 
 void
-thrust(Point loc);
+thrust(Point loc, int d);
+
+long LGRAY = (0xAA << 24) + (0xAA << 16) + (0xAA << 8) + 0xFF;
+long GRAY = (0x88 << 24) + (0x88 << 16) + (0x88 << 8) + 0xFF;
+long RED = (0xFF << 24) + (0x00 << 16) + (0x00 << 8) + 0xFF;
+long BLUE = (0x00 << 24) + (0x00 << 16) + (0xFF << 8) + 0xFF;
+
+void
+ship(Point location, double theta) {
+	double c = cos(theta), s = sin(theta);
+	Point loc = add(location, Pt(c*24, s*24));
+	//TODO: rotate ship
+	box(RED, add(loc, Pt(0, -U)), 9, -1);
+	box(LGRAY, loc, U, 1);
+	box(BLUE, add(loc, Pt(0, U)), 9, 1);
+	laser(add(loc, Pt(0, -U*2)), H);
+	thrust(add(loc, Pt(0, U*2)), H);
+}
 
 void
 main() {
-  initdraw(nit, nil, "Trader or Pirate");
-  Point center = Pt((screen->r.max.x + screen->r.min.x) / 2, (screen->r.max.y + screen->r.min.y) / 2);
-  
-  box(rgba(0xFF, 0x00, 0x00, 0xFF), add(center, Pt(0, -U-O)));
-  box(rgba(0x88, 0x88, 0x88, 0xFF), add(center, Pt(0, -U-O)));
-  box(rgba(0x00, 0xFF, 0xFF, 0xFF), add(center, Pt(0, -U-O)));
-  laser(add(center, Pt(0, -U-O)));
-  thrust(add(center, Pt(0, U+O)));
-  
-  flushimage(display, 1);
+	initdraw(nil, nil, "Trader or Pirate");
+	Point center = Pt((screen->r.max.x + screen->r.min.x) / 2, (screen->r.max.y + screen->r.min.y) / 2);
+	Point pos = Pt(0, 0);
+	double theta = 0;
+	//while(1) {
+		//pos.y -= 1;
+		theta += 0.1;
+		ship(add(center, pos), theta);
+		flushimage(display, 1);
+		sleep(1000/30);
+	while(1) {
+	}
   //closedisplay(display));
 }
 
 long
 rgba(uchar r, uchar g, uchar b, uchar a) {
-  return (r << 24) + (g << 16) + (b << 8) + a;
+	return (r << 24) + (g << 16) + (b << 8) + a;
 }
 
 Point
 add(Point p1, Point p2) {
-  return Pt(p1.x + p2.x, p1.y + p2.y);
+	return Pt(p1.x + p2.x, p1.y + p2.y);
 }
 
 void
-box(long color, Point loc) {
-  Image *palette = allocimagemix(display, color, color);
-  line(screen, add(loc, Pt(-H, -H)), add(loc, Pt(H, -H)), Enddisc, Enddisc, 1, palette, Pt(0, 0));
-  line(screen, add(loc, Pt(H, -H)), add(loc, Pt(H, H)), Enddisc, Enddisc, 1, palette, Pt(0, 0));
-  line(screen, add(loc, Pt(H, H)), add(loc, Pt(-H, H)), Enddisc, Enddisc, 1, palette, Pt(0, 0));
-  line(screen, add(loc, Pt(-H, -H)), add(loc, Pt(-H, H)), Enddisc, Enddisc, 1, palette, Pt(0, 0));
+drawpoly(long color, Point loc, Point p[], int n) {
+	Image *palette = allocimagemix(display, color, color);
+	for(int i=0; i < n; i++) {
+		line(screen, add(loc, p[i]), add(loc, p[(i + 1) % n]), Enddisc, Enddisc, 1, palette, Pt(0, 0));
+	}
 }
 
 void
-laser(Point loc) {
-  Point p[] = { Pt(-H, -H-O), Pt(0, -U-O), Pt(H, -H-O) };
-  long color = rgba(0xFF, 0x00, 0x00, 0xFF);
-  Image *palette = allocimagemix(display, color, color);
-  for(int i=0; i <= 2; i++) {
-    line(screen, add(loc, p[i]), add(loc, p[(i + 1) % 3]), Enddisc, Enddisc, 1, Pt(0, 0));
-  }
+box(long color, Point loc, int d, int inv) {
+	int x1 = loc.x - H, x2 = loc.x + H, hi = H*inv;
+	Point f[] = {
+		x1, loc.y-hi+(U-d)*inv,
+		x2, loc.y-hi+(U-d)*inv,
+		x2, loc.y+hi,
+		x1, loc.y+hi,
+		x1, loc.y-hi
+	};
+	Image *palette = allocimagemix(display, color, color);
+	fillpoly(screen, f, 5, 1, palette, Pt(0, 0));
+	Point p[4] = { -H, -H, H, -H, H, H, -H, H };
+	drawpoly(GRAY, loc, p, 4);
 }
 
 void
-thrust(Point loc) {
-  Point p[] = { Pt(-H, U+O), Pt(-D, H+O), Pt(D, H+O), Pt(H, U+O) };
-  long color = rgba(0x00, 0x00, 0xFF, 0xFF);
-  Image *palette = allocimagemix(display, color, color);
-  for(int i=0; i <= 3; i++) {
-    line(screen, add(loc, p[i]), add(loc, p[(i + 1) % 4]), Enddisc, Enddisc, 1, Pt(0, 0));
-  }
+laser(Point loc, int d) {
+	Point f[5] = {
+		loc.x-H, loc.y+H,
+		loc.x-H+d, loc.y+H-d,
+		loc.x+H-d, loc.y+H-d,
+		loc.x+H, loc.y+H,
+		loc.x-H, loc.y+H,
+	};
+	long color = rgba(0xFF, 0x00, 0x00, 0xFF);
+	Image *fillpalette = allocimagemix(display, color, color);
+	fillpoly(screen, f, 5, 1, fillpalette, Pt(0, 0));
+
+	Point p[] = { -H, H, 0, 0, H, H };
+	Image *palette = allocimagemix(display, GRAY, GRAY);
+	for(int i=0; i < 3; i++) {
+		line(screen, add(loc, p[i]), add(loc, p[(i + 1) % 3]), Enddisc, Enddisc, 1, palette, Pt(0, 0));
+	}
+}
+
+void
+thrust(Point loc, int d) {
+	Point f[5] = {
+		loc.x-D, loc.y-H,
+		loc.x-D-d/2, loc.y-H+d,
+		loc.x+D+d/2, loc.y-H+d,
+		loc.x+D, loc.y-H,
+		loc.x-D, loc.y-H,
+	};
+	long color = rgba(0x00, 0x00, 0xFF, 0xFF);
+	Image *fillpalette = allocimagemix(display, color, color);
+	fillpoly(screen, f, 5, 1, fillpalette, Pt(0, 0));
+
+	Point p[] = {
+		-H, 0,
+		-D, -H,
+		D, -H,
+		H, 0
+	};
+	Image *palette = allocimagemix(display, GRAY, GRAY);
+	for(int i=0; i <= 3; i++) {
+		line(screen, add(loc, p[i]), add(loc, p[(i + 1) % 4]), Enddisc, Enddisc, 1, palette, Pt(0, 0));
+	}
 }
