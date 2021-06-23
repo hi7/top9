@@ -27,11 +27,19 @@ long GRAY = (0x88 << 24) + (0x88 << 16) + (0x88 << 8) + 0xFF;
 long RED = (0xFF << 24) + (0x00 << 16) + (0x00 << 8) + 0xFF;
 long BLUE = (0x00 << 24) + (0x00 << 16) + (0xFF << 8) + 0xFF;
 
+typedef struct Ship Ship;
+struct Ship {
+	Point pos;
+	double theta;
+};
+
 void
-ship(Point location, double theta) {
-	double c = cos(theta), s = sin(theta);
-	Point loc = add(location, Pt(c*24, s*24));
+drawship(Ship ship, Point center) {
+	double c = cos(ship.theta), s = sin(ship.theta);
+	Point loc = add(add(ship.pos, Pt(c*24, s*24)), center);
 	//TODO: rotate ship
+	draw(screen, Rect(loc.x-H-4, loc.y-2*U-4, loc.x+H+8, loc.y+2*U+8), display->black, nil, ZP);
+
 	box(RED, add(loc, Pt(0, -U)), 9, -1);
 	box(LGRAY, loc, U, 1);
 	box(BLUE, add(loc, Pt(0, U)), 9, 1);
@@ -43,15 +51,18 @@ void
 main() {
 	initdraw(nil, nil, "Trader or Pirate");
 	Point center = Pt((screen->r.max.x + screen->r.min.x) / 2, (screen->r.max.y + screen->r.min.y) / 2);
-	Point pos = Pt(0, 0);
-	double theta = 0;
-	//while(1) {
-		//pos.y -= 1;
-		theta += 0.1;
-		ship(add(center, pos), theta);
-		flushimage(display, 1);
-		sleep(1000/30);
+	Ship ship = {
+		.pos = Pt(0, 0),
+		.theta = 0,
+	};
+	draw(screen, screen->r, display->black, nil, ZP);
 	while(1) {
+		//pos.y -= 1;
+		ship.theta += 0.1;
+		drawship(ship, center);
+		flushimage(display, 1);
+	//while(1) {
+		sleep(1000/15);
 	}
   //closedisplay(display));
 }
